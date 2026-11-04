@@ -30,7 +30,9 @@ def save_state(state):
         json.dump(state, f, ensure_ascii=False, indent=2)
 
 def send_discord_notification(webhook_url, message):
-    payload = {"content": message}
+    # ★ 先頭に @everyone を自動付与してiOSのバッジ（未読数）に対応させる
+    content = f"@everyone {message}"
+    payload = {"content": content}
     requests.post(webhook_url, json=payload)
 
 def main():
