@@ -8,12 +8,12 @@ TARGETS = [
     {
         "name": "Ikebe-Gakki (Tak Matsumoto DC)",
         "url": "https://www.ikebe-gakki.com/Form/Product/ProductDetail.aspx?shop=0&pid=870613&bid=ec",
-        "sold_out_keywords": ["SOLD OUT", "受付終了", "在庫なし"]
+        "sold_out_keywords": ["SOLD OUT"]
     },
     {
         "name": "Kurosawa Gakki (Tak Matsumoto DC)",
         "url": "https://www.kurosawagakki.com/gibson/tak_matsumoto_dc_std_tp/",
-        "sold_out_keywords": ["SOLD OUT", "売約済", "在庫なし", "HOLD"]
+        "sold_out_keywords": ["SOLD OUT"]
     }
 ]
 
@@ -51,22 +51,22 @@ def main():
 
         target_state = state.get(url, {})
         was_in_stock = target_state.get("in_stock", False)
-        was_error = target_state.get("has_error", False)
+        error_count = target_state.get("error_count", 0)
+        error_notified = target_state.get("error_notified", False)
 
         current_in_stock = was_in_stock
-        current_error = False
+        is_error = False
         error_message = ""
 
         try:
             response = session.get(url, impersonate="chrome", timeout=15)
             if response.status_code != 200:
-                current_error = True
+                is_error = True
                 error_message = f"HTTP Status Code: {response.status_code}"
             else:
                 soup = BeautifulSoup(response.text, 'html.parser')
                 page_text = soup.get_text()
 
-                # is_sold_out = any(kw in page_text for kw in keywords)
                 is_sold_out = any(kw.lower() in page_text.lower() for kw in keywords)
                 current_in_stock = not is_sold_out
 
@@ -78,23 +78,32 @@ def main():
                     print(f"[{name}] Stock notification sent!")
 
         except Exception as e:
-            current_error = True
+            is_error = True
             error_message = str(e)
             print(f"[{name}] Error: {e}")
 
-        if current_error and not was_error:
-            err_msg = f"⚠️ **【監視エラー】** `{name}` にアクセスできませんでした。\n🔗 {url}\n📝 理由: `{error_message}`"
-            send_discord_notification(webhook_url, err_msg)
-            print(f"[{name}] Error notification sent!")
-        elif not current_error and was_error:
-            rec_msg = f"✅ **【監視復旧】** `{name}` へのアクセスが復旧しました。"
-            send_discord_notification(webhook_url, rec_msg)
-            print(f"[{name}] Recovery notification sent!")
+        if is_error:
+            error_count += 1
+            # 3回連続（約3分間）失敗した時だけエラー通知を送る
+            if error_count >= 3 and not error_notified:
+                err_msg = f"⚠️ **【監視エラー（3回連続）】** `{name}` にアクセスできませんでした。\n🔗 {url}\n📝 理由: `{error_message}`"
+                send_discord_notification(webhook_url, err_msg)
+                error_notified = True
+                print(f"[{name}] Error notification sent!")
+        else:
+            # エラー通知を出していた場合のみ復旧通知を送る
+            if error_notified:
+                rec_msg = f"✅ **【監視復旧】** `{name}` へのアクセスが復旧しました。"
+                send_discord_notification(webhook_url, rec_msg)
+                print(f"[{name}] Recovery notification sent!")
+            error_count = 0
+            error_notified = False
 
-        if url not in state:
-            state[url] = {}
-        state[url]["in_stock"] = current_in_stock
-        state[url]["has_error"] = current_error
+        state[url] = {
+            "in_stock": current_in_stock,
+            "error_count": error_count,
+            "error_notified": error_notified
+        }
 
     save_state(state)
 
