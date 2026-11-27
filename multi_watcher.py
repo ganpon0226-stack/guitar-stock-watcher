@@ -66,7 +66,8 @@ def main():
                 soup = BeautifulSoup(response.text, 'html.parser')
                 page_text = soup.get_text()
 
-                is_sold_out = any(kw in page_text for kw in keywords)
+                # is_sold_out = any(kw in page_text for kw in keywords)
+                is_sold_out = any(kw.lower() in page_text.lower() for kw in keywords)
                 current_in_stock = not is_sold_out
 
                 print(f"[{name}] In Stock: {current_in_stock}")
