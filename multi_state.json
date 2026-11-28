@@ -1,8 +1,8 @@
 {
   "https://www.ikebe-gakki.com/Form/Product/ProductDetail.aspx?shop=0&pid=870613&bid=ec": {
     "in_stock": false,
-    "error_count": 2,
-    "error_notified": false
+    "error_count": 3,
+    "error_notified": true
   },
   "https://www.kurosawagakki.com/gibson/tak_matsumoto_dc_std_tp/": {
     "in_stock": false,
